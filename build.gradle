@@ -125,16 +125,25 @@ version = versionMap['logstash-core']
 String artifactVersionsApi = "https://artifacts-api.elastic.co/v1/versions"
 
 tasks.register("configureArchitecture") {
-    String arch = "x86_64"
+    String arch = System.properties['os.arch']
     String osName = System.properties['os.name']
+    String bsarch = arch
+    String esarch = arch
+    System.out.println("The architecture is ${arch}")
+    if (arch == "aarch64") {
+        bsarch="arm64"
+        esarch="aarch64"
+    }
 
     if (osName ==~ /Mac OS X/) {
         osName = "darwin"
     } else {
         osName = "linux"
     }
-    String architecture = "${osName}-${arch}"
-    project.ext.set("architecture", architecture)
+    String beatsArchitecture = "${osName}-${bsarch}"
+    String esArchitecture = "${osName}-${esarch}"
+    project.ext.set("beatsArchitecture", beatsArchitecture)
+    project.ext.set("esArchitecture", esArchitecture)
 }
 
 tasks.register("configureArtifactInfo") {
@@ -159,8 +168,7 @@ tasks.register("configureArtifactInfo") {
     def stackBuildVersion = dlBuilds["builds"][0]
 
     project.ext.set("artifactApiVersionedBuildUrl", "${artifactVersionsApi}/${qualifiedVersion}/builds/${stackBuildVersion}")
-    project.ext.set("stackArtifactSuffix", "${qualifiedVersion}-${project.ext.get('architecture')}")
-    project.ext.set("stackArtifactSuffixNoArch", qualifiedVersion)
+    project.ext.set("stackArtifactSuffix", qualifiedVersion)
 }
 
 
@@ -342,7 +350,7 @@ tasks.register("downloadFilebeat", Download) {
 
     project.ext.set("versionFound", true)
 
-    String downloadedFilebeatName = "filebeat-${project.ext.get("stackArtifactSuffix")}"
+    String downloadedFilebeatName = "filebeat-${project.ext.get("stackArtifactSuffix")}-${project.ext.get("beatsArchitecture")}"
     project.ext.set("unpackedFilebeatName", downloadedFilebeatName)
 
     // find url of build artifact
@@ -455,8 +463,8 @@ tasks.register("downloadEs", Download) {
     dependsOn  configureArtifactInfo
     description "Download ES Snapshot for current branch version: ${version}"
     
-    String downloadedElasticsearchName = "elasticsearch-${project.ext.get("stackArtifactSuffix")}"
-    project.ext.set("unpackedElasticsearchName", "elasticsearch-${project.ext.get("stackArtifactSuffixNoArch")}")
+    String downloadedElasticsearchName = "elasticsearch-${project.ext.get("stackArtifactSuffix")}-${project.ext.get("esArchitecture")}"
+    project.ext.set("unpackedElasticsearchName", "elasticsearch-${project.ext.get("stackArtifactSuffix")}")
 
     // find url of build artifact
     String artifactApiUrl = "${project.ext.get("artifactApiVersionedBuildUrl")}/projects/elasticsearch/packages/${downloadedElasticsearchName}.tar.gz"
